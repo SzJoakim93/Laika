@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.AI;
-using System.Collections;
+using System.Collections.Generic;
 using UnityEngine.EventSystems;
 using System;
 
@@ -16,6 +16,7 @@ public class PlayerController : MonoBehaviour
 
     [SerializeField]
     protected NavMeshAgent agent;
+    List<Transform> cameraPositions;
     #endregion
    
     // if ui is not included in this, then the raycast goes tru it and ui click triggers movement
@@ -48,8 +49,10 @@ public class PlayerController : MonoBehaviour
 
     protected Ray movementControlScreenToWorlRay;
     protected RaycastHit movementControlScreenToWorldHit;
+    bool enterCameraPosition = false;
 
     #endregion
+    Transform selectedObject = null;
 
     public static Action<Vector3> OnNavigationClick = delegate { };
 
@@ -74,11 +77,37 @@ public class PlayerController : MonoBehaviour
 
     void Start()  {
         walkSpeed = 10f;
+        GameObject foundedObj = null;
+        int i = 0;
+        cameraPositions = new List<Transform>();
+
+        do
+        {
+            foundedObj = GameObject.Find("CameraPlace" + i);
+            if (foundedObj != null)
+            {
+                cameraPositions.AddRange(foundedObj.GetComponentsInChildren<Transform>());
+                cameraPositions.Remove(foundedObj.transform);
+            }
+                
+            i++;
+            Debug.Log(i);
+        }
+        while (foundedObj != null);
     }
 
     void Update() {
         SetAnimatorParameters();
         GetScreenClickToNavigate();
+
+        if (selectedObject!= null && !movementChanged() && Vector3.Distance(selectedObject.position, transform.position) < 5.0f)
+        {
+            if (selectedObject != null)
+            {
+                selectedObject.GetComponent<ActionManager>().Invoke();
+                selectedObject = null;
+            }
+        }
     }
 
     private void GetScreenClickToNavigate() {
@@ -91,6 +120,15 @@ public class PlayerController : MonoBehaviour
                 agent.SetDestination(movementControlScreenToWorldHit.point);
                 agent.speed = walkSpeed;
             }
+
+            RaycastHit hit;
+            Ray ray = Camera.main.ScreenPointToRay (Input.mousePosition);
+
+            if (Physics.Raycast(ray, out hit, 100.0f))
+            {
+                if (hit.transform.tag == "interactable")
+                    selectedObject = hit.transform;
+            }
         }
     }
 
@@ -101,12 +139,15 @@ public class PlayerController : MonoBehaviour
             myAnimator.SetBool("isWalking", false);
     }
 
-    void OnTriggerEnter(Collider coll) {
-        if (coll.CompareTag("camera_place"))
-            mainCamera.transform.position = coll.transform.position;
-        else if (coll.gameObject.tag.Contains("interactable")) {
-            coll.GetComponent<ActionManager>().Invoke();
-        }
+    bool movementChanged()
+    {
+        return agent.velocity.sqrMagnitude > 0f;
+    }
+
+    void OnTriggerEnter(Collider coll)
+    {
+        if (coll.CompareTag("camera_trigger"))
+            mainCamera.transform.position = coll.transform.parent.position;
     }
 }
 

@@ -5,8 +5,8 @@ TagManager:
   serializedVersion: 2
   tags:
   - petrol
-  - camera_place
   - interactable
+  - camera_trigger
   layers:
   - Default
   - TransparentFX
